@@ -88,7 +88,8 @@ let () =
 let () =
   if config.dirs.link_static then
     try
-      Core_unix.symlink ~target:config.dirs.static
+      Core_unix.symlink
+        ~target:(Filename.concat (Core_unix.getcwd() )config.dirs.static)
         ~link_name:(Filename.concat config.dirs.output "static")
     with e ->
       Printf.eprintf "Failed to link static, continuing: %s\n" (Exn.to_string e)
