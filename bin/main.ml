@@ -113,7 +113,7 @@ let md_paths =
   @@
   try Core_unix.opendir config.dirs.input
   with e ->
-    Format.eprintf "Failed to open input directory ((dirs ((input x)))): %s\n"
+    Format.eprintf "Failed to open input directory ((dirs ((input HERE)))): %s\n"
       (Exn.to_string e);
     exit 1
 
