@@ -117,7 +117,7 @@ let md_paths =
       (Exn.to_string e);
     exit 1
 
-(* for every input and output path, compile and write *)
+(* for every input and output path, compile md and render *)
 let _ =
   let root_tmpl =
     compile_mustache_file
