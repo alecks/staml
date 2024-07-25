@@ -97,15 +97,15 @@ let () =
   if config.dirs.create_output then
     try Core_unix.mkdir config.dirs.output with _ -> ()
 
-(* link the static dir, printing errors but continuing *)
+(* link the static dir, ignoring errors *)
+(* TODO: errors *)
 let () =
   if config.dirs.link_static then
     try
       Core_unix.symlink
         ~target:(Filename.concat (Core_unix.getcwd ()) config.dirs.static)
         ~link_name:(Filename.concat config.dirs.output "static")
-    with e ->
-      Printf.eprintf "Failed to link static, continuing: %s\n" (Exn.to_string e)
+    with _ -> ()
 
 (* open input dir *)
 let md_paths =
