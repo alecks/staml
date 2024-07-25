@@ -1,25 +1,38 @@
 open Core
 
-type dirs_config = {
-  input : string; [@default "src"]
-  output : string; [@default "dist"]
-  mkdir_output : bool; [@default true]
-}
-[@@deriving of_sexp]
+module Config = struct
+  type dirs = {
+    input : string; [@default "src"]
+    output : string; [@default "dist"]
+    templates : string; [@default "src/templates"]
+    (* static : string; [@default "src/static"] *)
+    mkdir_output : bool; [@default true]
+  }
+  [@@deriving of_sexp]
 
-type config = { dirs : dirs_config } [@@deriving of_sexp]
+  type meta = { name : string; description : string } [@@deriving of_sexp]
+  type config = { dirs : dirs; meta : meta } [@@deriving of_sexp]
+end
+[@@deriving of_sexp]
 
 let config_filepath =
   Option.value (Sys.getenv "STAML_CONFIG") ~default:"config.sexp"
 
 let config =
-  try config_of_sexp @@ Sexp.load_sexp config_filepath
+  try Config.(config_of_sexp) @@ Sexp.load_sexp config_filepath
   with e ->
-    eprintf
+    Format.eprintf
       "Failed to read/parse config (defaults to config.sexp, set with \
        STAML_CONFIG env var): %s\n"
       (Exn.to_string e);
     exit 1
+
+let meta_json =
+  `O
+    [
+      ("name", `String config.meta.name);
+      ("description", `String config.meta.description);
+    ]
 
 let rec input_filepaths dir =
   match Core_unix.readdir_opt dir with
@@ -36,7 +49,33 @@ let input_to_output_filepaths =
       Filename.concat config.dirs.output
         (Filename.basename @@ Filename.chop_extension fn ^ ".html"))
 
-let compile_and_write ic oc = fprintf oc "%s" (Omd.to_html @@ Omd.of_channel ic)
+let root_tmpl =
+  try
+    Mustache.of_string
+    @@ In_channel.read_all
+         (Filename.concat config.dirs.templates "root.mustache")
+  with
+  | Mustache.Parse_error e ->
+      Format.eprintf "%a@." Mustache.pp_template_parse_error e;
+      exit 1
+  | e ->
+      Format.eprintf "Failed to read root.mustache: %s\n" (Exn.to_string e);
+      exit 1
+
+let compile_from_file filename =
+  let ic = In_channel.create filename in
+  let compiled = Omd.to_html (Omd.of_channel ic) in
+  In_channel.close ic;
+  compiled
+
+let render_to_file filename markdown json =
+  let oc = Out_channel.create filename in
+  let fmt = Format.formatter_of_out_channel oc in
+  Mustache.render_fmt fmt root_tmpl json ~partials:(fun name ->
+      match name with
+      | "inner_body" -> Some (Mustache.of_string markdown)
+      | _ -> None);
+  Out_channel.close oc
 
 (* create output_dir, ignoring errors *)
 let () =
@@ -49,7 +88,7 @@ let md_paths =
   @@
   try Core_unix.opendir config.dirs.input
   with e ->
-    eprintf "Failed to open input directory ((dirs ((input x)))): %s\n"
+    Format.eprintf "Failed to open input directory ((dirs ((input x)))): %s\n"
       (Exn.to_string e);
     exit 1
 
@@ -57,11 +96,6 @@ let md_paths =
 let _ =
   List.iter2 md_paths (input_to_output_filepaths md_paths)
     ~f:(fun in_fp out_fp ->
-      let ic = In_channel.create in_fp in
-      let oc = Out_channel.create out_fp in
-
-      compile_and_write ic oc;
-      print_endline @@ "compiled " ^ in_fp ^ " to " ^ out_fp;
-
-      In_channel.close ic;
-      Out_channel.close oc)
+      let inner_html = compile_from_file in_fp in
+      render_to_file out_fp inner_html meta_json;
+      print_endline @@ "compiled " ^ in_fp ^ " to " ^ out_fp)
