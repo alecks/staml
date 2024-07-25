@@ -23,7 +23,7 @@ end
 let read_config filename =
   try Config.(config_of_sexp) @@ Sexp.load_sexp filename
   with e ->
-    Format.eprintf "Failed to read/parse config from %s: %s" filename
+    Format.eprintf "Failed to read/parse config from %s: %s\n" filename
       (Exn.to_string e);
     exit 1
 
@@ -77,17 +77,27 @@ let render_mustache_to_file filename inner_body context root_tmpl partials =
   let oc =
     try Out_channel.create filename
     with e ->
-      Printf.eprintf "Failed to open file for writing: %s\n" (Exn.to_string e);
+      Printf.eprintf
+        "Failed to open file for writing: %s\n\
+         You may want to set ((dirs ((create_output true)))) to create your \
+         output directory.\n"
+        (Exn.to_string e);
       exit 1
   in
 
   let fmt = Format.formatter_of_out_channel oc
   and inner_body = compile_mustache_str inner_body in
 
-  Mustache.render_fmt fmt root_tmpl context ~partials:(fun name ->
-      match name with
-      | "inner_body" -> Some inner_body
-      | _ -> Map.find partials name);
+  let () =
+    try
+      Mustache.render_fmt fmt root_tmpl context ~partials:(fun name ->
+          match name with
+          | "inner_body" -> Some inner_body
+          | _ -> Map.find partials name)
+    with e ->
+      Printf.eprintf "Failed to render to %s: %s\n" filename (Exn.to_string e);
+      exit 1
+  in
   Out_channel.close oc
 
 let config =
@@ -133,15 +143,21 @@ let _ =
     @@ Filename.concat config.dirs.templates "root.mustache"
   in
 
-  let partials_hdl = Core_unix.opendir config.dirs.partials in
-  let partials = load_partials config.dirs.partials partials_hdl in
-
-  let _ =
-    List.iter2 md_paths (to_output_filepaths config.dirs.output md_paths)
-      ~f:(fun in_fp out_fp ->
-        let inner_html = compile_markdown_file in_fp in
-        render_mustache_to_file out_fp inner_html meta_context root_tmpl
-          partials;
-        print_endline @@ "Rendered: " ^ in_fp ^ " => " ^ out_fp)
+  let partials =
+    try
+      let hdl = Core_unix.opendir config.dirs.partials in
+      let p = load_partials config.dirs.partials hdl in
+      Core_unix.closedir hdl;
+      p
+    with e ->
+      Printf.eprintf
+        "Failed to open partials directory: %s\nContinuing with no partials.\n"
+        (Exn.to_string e);
+      Map.empty (module String)
   in
-  Core_unix.closedir partials_hdl
+
+  List.iter2 md_paths (to_output_filepaths config.dirs.output md_paths)
+    ~f:(fun in_fp out_fp ->
+      let inner_html = compile_markdown_file in_fp in
+      render_mustache_to_file out_fp inner_html meta_context root_tmpl partials;
+      print_endline @@ "Rendered: " ^ in_fp ^ " => " ^ out_fp)
