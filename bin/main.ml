@@ -71,7 +71,7 @@ let compile_markdown_file filename =
   In_channel.close ic;
   compiled
 
-let render_to_file filename inner_body context root_tmpl partials =
+let render_mustache_to_file filename inner_body context root_tmpl partials =
   let oc = Out_channel.create filename in
   let fmt = Format.formatter_of_out_channel oc in
   let inner_body = compile_mustache_str inner_body in
@@ -130,7 +130,7 @@ let _ =
     List.iter2 md_paths (to_output_filepaths config.dirs.output md_paths)
       ~f:(fun in_fp out_fp ->
         let inner_html = compile_markdown_file in_fp in
-        render_to_file out_fp inner_html meta_context root_tmpl partials;
-        print_endline @@ "compiled " ^ in_fp ^ " to " ^ out_fp)
+        render_mustache_to_file out_fp inner_html meta_context root_tmpl partials;
+        print_endline @@ "Rendered: " ^ in_fp ^ " => " ^ out_fp)
   in
   Core_unix.closedir partials_hdl
