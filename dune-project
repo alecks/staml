@@ -17,7 +17,7 @@
  (name staml)
  (synopsis "fast static site generator")
  (description "fast OCaml static site generator using Omd for markdown compilation")
- (depends dune omd core core_unix ppx_sexp_conv)
+ (depends dune omd core core_unix ppx_sexp_conv mustache)
  (tags
   (website markdown)))
 

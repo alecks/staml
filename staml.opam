@@ -16,6 +16,7 @@ depends: [
   "core"
   "core_unix"
   "ppx_sexp_conv"
+  "mustache"
   "odoc" {with-doc}
 ]
 build: [
