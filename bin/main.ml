@@ -5,8 +5,10 @@ module Config = struct
     input : string; [@default "src"]
     output : string; [@default "dist"]
     templates : string; [@default "src/templates"]
-    (* static : string; [@default "src/static"] *)
-    mkdir_output : bool; [@default true]
+    static : string; [@default "src/static"]
+    (* TODO: copy static? *)
+    link_static : bool; [@default false]
+    create_output : bool; [@default true]
   }
   [@@deriving of_sexp]
 
@@ -27,7 +29,6 @@ let config =
       (Exn.to_string e);
     exit 1
 
-(* TODO: parse this from a file *)
 let meta_json =
   `O
     [
@@ -80,8 +81,17 @@ let render_to_file filename markdown json =
 
 (* create output_dir, ignoring errors *)
 let () =
-  if config.dirs.mkdir_output then
+  if config.dirs.create_output then
     try Core_unix.mkdir config.dirs.output with _ -> ()
+
+(* link the static dir, printing errors but continuing *)
+let () =
+  if config.dirs.link_static then
+    try
+      Core_unix.symlink ~target:config.dirs.static
+        ~link_name:(Filename.concat config.dirs.output "static")
+    with e ->
+      Printf.eprintf "Failed to link static, continuing: %s\n" (Exn.to_string e)
 
 (* open input dir *)
 let md_paths =
