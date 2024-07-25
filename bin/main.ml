@@ -74,9 +74,15 @@ let compile_markdown_file filename =
   compiled
 
 let render_mustache_to_file filename inner_body context root_tmpl partials =
-  let oc = Out_channel.create filename in
-  let fmt = Format.formatter_of_out_channel oc in
-  let inner_body = compile_mustache_str inner_body in
+  let oc =
+    try Out_channel.create filename
+    with e ->
+      Printf.eprintf "Failed to open file for writing: %s\n" (Exn.to_string e);
+      exit 1
+  in
+
+  let fmt = Format.formatter_of_out_channel oc
+  and inner_body = compile_mustache_str inner_body in
 
   Mustache.render_fmt fmt root_tmpl context ~partials:(fun name ->
       match name with
@@ -115,7 +121,8 @@ let md_paths =
   @@
   try Core_unix.opendir config.dirs.input
   with e ->
-    Format.eprintf "Failed to open input directory ((dirs ((input HERE)))): %s\n"
+    Format.eprintf
+      "Failed to open input directory ((dirs ((input HERE)))): %s\n"
       (Exn.to_string e);
     exit 1
 
@@ -125,6 +132,7 @@ let _ =
     compile_mustache_file
     @@ Filename.concat config.dirs.templates "root.mustache"
   in
+
   let partials_hdl = Core_unix.opendir config.dirs.partials in
   let partials = load_partials config.dirs.partials partials_hdl in
 
@@ -132,7 +140,8 @@ let _ =
     List.iter2 md_paths (to_output_filepaths config.dirs.output md_paths)
       ~f:(fun in_fp out_fp ->
         let inner_html = compile_markdown_file in_fp in
-        render_mustache_to_file out_fp inner_html meta_context root_tmpl partials;
+        render_mustache_to_file out_fp inner_html meta_context root_tmpl
+          partials;
         print_endline @@ "Rendered: " ^ in_fp ^ " => " ^ out_fp)
   in
   Core_unix.closedir partials_hdl
