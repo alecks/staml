@@ -40,7 +40,7 @@ let to_output_filepaths dirname =
       Filename.concat dirname
         (Filename.basename @@ Filename.chop_extension fn ^ ".html"))
 
-let compile_mustache_exn str =
+let compile_mustache_str str =
   try Mustache.of_string str
   with Mustache.Parse_error e ->
     print_endline str;
@@ -48,7 +48,7 @@ let compile_mustache_exn str =
     exit 1
 
 let compile_mustache_file fn =
-  try compile_mustache_exn @@ In_channel.read_all fn
+  try compile_mustache_str @@ In_channel.read_all fn
   with e ->
     Format.eprintf "Failed to read %s: %s\n" fn (Exn.to_string e);
     exit 1
@@ -74,7 +74,7 @@ let compile_markdown_file filename =
 let render_to_file filename inner_body context root_tmpl partials =
   let oc = Out_channel.create filename in
   let fmt = Format.formatter_of_out_channel oc in
-  let inner_body = compile_mustache_exn inner_body in
+  let inner_body = compile_mustache_str inner_body in
 
   Mustache.render_fmt fmt root_tmpl context ~partials:(fun name ->
       match name with
