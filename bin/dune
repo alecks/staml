@@ -1,5 +1,5 @@
 (executable
  (public_name staml)
  (name main)
- (libraries staml core core_unix omd)
+ (libraries staml core core_unix omd mustache)
  (preprocess (pps ppx_sexp_conv)))
