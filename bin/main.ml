@@ -27,6 +27,7 @@ let config =
       (Exn.to_string e);
     exit 1
 
+(* TODO: parse this from a file *)
 let meta_json =
   `O
     [
