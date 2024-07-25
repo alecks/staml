@@ -4,6 +4,7 @@ module Config = struct
   type dirs = {
     input : string; [@default "src"]
     output : string; [@default "dist"]
+    (* TODO: allow multiple templates *)
     templates : string; [@default "src/templates"]
     partials : string; [@default "src/partials"]
     static : string; [@default "src/static"]
@@ -13,6 +14,7 @@ module Config = struct
   }
   [@@deriving of_sexp]
 
+  (* TODO: allow this to be anything and automatically update json *)
   type meta = { name : string; description : string } [@@deriving of_sexp]
   type config = { dirs : dirs; meta : meta } [@@deriving of_sexp]
 end
